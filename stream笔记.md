@@ -243,7 +243,7 @@ System.out.println("collect: " + collect);
 
 ### 收集器Collector源码
 
-​	 ![1565096905803](H:\学习资料课件\markdown\image\1565096905803.png)
+​	 ![1565096905803](image/1565096905803.png)
 
 **Collector** 首先有5个主要的函数：supplier、accumulator、combiner、finisher、characteristics。
 
@@ -290,7 +290,7 @@ Function<A, R> finisher();
 
 > supplier、accumulator、finisher这三个函数就完全够流的顺序归约了
 >
-> ![1565097815384](H:\学习资料课件\markdown\image\1565097815384.png)
+> ![1565097815384](image/1565097815384.png)
 
 **combiner**：combiner方法会返回一个供归约操作使用的函数，它定义了对流的各个子部分进行并行处理时，各个子部分归约所得的累加器要如何合并。
 
@@ -478,7 +478,7 @@ List<User> collect = list.stream().collect(Collectors.toList());
 
 >CharSequence 这是个字符串的序列接口，String、StringBuffer、StringBuilder也是实现这个接口。它和String的区别就是，String可读不可变，CharSequence是可读可变
 >
->![1565102894858](H:\学习资料课件\markdown\image\1565102894858.png)
+>![1565102894858](image/1565102894858.png)
 
 **使用字符串拼接**
 
