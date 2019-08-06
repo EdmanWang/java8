@@ -4,7 +4,7 @@
 
 stream：stream是只计算当前需要的数据，在迭代过程中，stream是放在内部迭代的，集合的迭代是放在外部。在外部迭代就会需要自己解决管理并行的问题。   
 
-![img](D:/%E4%B8%AD%E6%96%87%E5%AE%89%E8%A3%85%E8%B7%AF%E5%BE%84/%E6%9C%89%E9%81%93%E4%BA%91%E7%AC%94%E8%AE%B0/%E7%AC%94%E8%AE%B0%E4%BF%9D%E5%AD%98%E5%9C%B0%E5%9D%80/qq031651CFD1211506605F887E77625509/30d9ea44412743a292dc206e9b9ecd4d/clipboard.png)
+![img](image/clipboard.png)
 
 集合：集合是一次计算所有的值，Stream的流只消费一次
 
