@@ -4,7 +4,7 @@
 
 stream：stream是只计算当前需要的数据，在迭代过程中，stream是放在内部迭代的，集合的迭代是放在外部。在外部迭代就会需要自己解决管理并行的问题。   
 
-![img](D:/%E4%B8%AD%E6%96%87%E5%AE%89%E8%A3%85%E8%B7%AF%E5%BE%84/%E6%9C%89%E9%81%93%E4%BA%91%E7%AC%94%E8%AE%B0/%E7%AC%94%E8%AE%B0%E4%BF%9D%E5%AD%98%E5%9C%B0%E5%9D%80/qq031651CFD1211506605F887E77625509/30d9ea44412743a292dc206e9b9ecd4d/clipboard.png)
+![img](image/clipboard.png)
 
 集合：集合是一次计算所有的值，Stream的流只消费一次
 
@@ -25,7 +25,7 @@ List<String> collect = list.stream()
 **中间操作**：如filter、sort、map等中间操作都会返回一个另外一个流。这让多个操作可以连接起来形成一个查询。最重要的是：除非流水线上有一个终端操作，不然中间操作不会做任何处理，因为中间操作都可以合并起来，一起在终端操作一次性全部处理。
 **终端操作**：都会从流的流水线产生结果，他的结果不是流。
 
-![img](D:/%E4%B8%AD%E6%96%87%E5%AE%89%E8%A3%85%E8%B7%AF%E5%BE%84/%E6%9C%89%E9%81%93%E4%BA%91%E7%AC%94%E8%AE%B0/%E7%AC%94%E8%AE%B0%E4%BF%9D%E5%AD%98%E5%9C%B0%E5%9D%80/qq031651CFD1211506605F887E77625509/040cdb0d8b6c456691267a921cc74c0c/clipboard.png)
+![img](image/clipboard2.png)
 
 使用流一般包括三件事：①：一个数据源执行一个查询，②一个中间操作链，行程一条流的流水线，③：一个终端操作，执行流水线，生成最终结果。
 
@@ -40,7 +40,7 @@ List<Integer> integerList =Arrays.asList(1,2,2,2,2,2,4,5,6,7,8);
         .collect(Collectors.toList()); // 终端操作    
 ```
 
-![img](D:/%E4%B8%AD%E6%96%87%E5%AE%89%E8%A3%85%E8%B7%AF%E5%BE%84/%E6%9C%89%E9%81%93%E4%BA%91%E7%AC%94%E8%AE%B0/%E7%AC%94%E8%AE%B0%E4%BF%9D%E5%AD%98%E5%9C%B0%E5%9D%80/qq031651CFD1211506605F887E77625509/c34d660d58b14e449bf36944ebd36ed1/clipboard.png)
+![img](image/clipboard3.png)
 
 distinct顾名思义**：去掉重复的。
 
@@ -132,7 +132,7 @@ Integer reduce = integerList.stream()
         这两个是一样的 还有Integer::MAX和MIN
 ```
 
-![img](D:/%E4%B8%AD%E6%96%87%E5%AE%89%E8%A3%85%E8%B7%AF%E5%BE%84/%E6%9C%89%E9%81%93%E4%BA%91%E7%AC%94%E8%AE%B0/%E7%AC%94%E8%AE%B0%E4%BF%9D%E5%AD%98%E5%9C%B0%E5%9D%80/qq031651CFD1211506605F887E77625509/daac4c5552d64efda753ce953e170668/clipboard.png)
+![img](image/clipboard4.png)
 
 #### 6.数值流
 
@@ -185,7 +185,7 @@ Integer::sum);//累积函数
 还有类似的函数：averagingInt计算平均值
 > 但是还可以通过summarizingInt可以一次性得到：对应的最大值、最小值、平均值、和、数量等信息，可以通过getter获取
 >
-> ![img](D:/%E4%B8%AD%E6%96%87%E5%AE%89%E8%A3%85%E8%B7%AF%E5%BE%84/%E6%9C%89%E9%81%93%E4%BA%91%E7%AC%94%E8%AE%B0/%E7%AC%94%E8%AE%B0%E4%BF%9D%E5%AD%98%E5%9C%B0%E5%9D%80/qq031651CFD1211506605F887E77625509/b61778caa98d4ec2ac87b038a02952c6/clipboard.png)
+> ![img](image/clipboard5.png)
 
 **joining连接字符串**：
 ```
@@ -198,7 +198,7 @@ System.out.println("collect2:" + collect2);
 
 输出效果：
 
-![img](D:/%E4%B8%AD%E6%96%87%E5%AE%89%E8%A3%85%E8%B7%AF%E5%BE%84/%E6%9C%89%E9%81%93%E4%BA%91%E7%AC%94%E8%AE%B0/%E7%AC%94%E8%AE%B0%E4%BF%9D%E5%AD%98%E5%9C%B0%E5%9D%80/qq031651CFD1211506605F887E77625509/879f3bdfcfa946c28ccc0ce2e79537b5/clipboard.png)
+![img](image/clipboard6.png)
 
 **求和的几种形式**：
 ```
@@ -234,7 +234,7 @@ System.out.println("collect: " + collect);
 
 **函数大全**
 
-![img](D:/%E4%B8%AD%E6%96%87%E5%AE%89%E8%A3%85%E8%B7%AF%E5%BE%84/%E6%9C%89%E9%81%93%E4%BA%91%E7%AC%94%E8%AE%B0/%E7%AC%94%E8%AE%B0%E4%BF%9D%E5%AD%98%E5%9C%B0%E5%9D%80/qq031651CFD1211506605F887E77625509/f13a96d528824eadb1c397b425941275/clipboard.png)
+![img](image/clipboard7.png)
 
-![img](D:/%E4%B8%AD%E6%96%87%E5%AE%89%E8%A3%85%E8%B7%AF%E5%BE%84/%E6%9C%89%E9%81%93%E4%BA%91%E7%AC%94%E8%AE%B0/%E7%AC%94%E8%AE%B0%E4%BF%9D%E5%AD%98%E5%9C%B0%E5%9D%80/qq031651CFD1211506605F887E77625509/e8c4b005d5154eb29ee921e24f67db3b/clipboard.png)
+![img](image/clipboard8.png)
 
