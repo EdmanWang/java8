@@ -1,5 +1,6 @@
-#### 1.Lambda 表达式 略
-#### 2.Stream
+### Stream使用
+
+#### 1.Stream
 **Stream和集合的区别**：
 
 stream：stream是只计算当前需要的数据，在迭代过程中，stream是放在内部迭代的，集合的迭代是放在外部。在外部迭代就会需要自己解决管理并行的问题。   
@@ -8,7 +9,7 @@ stream：stream是只计算当前需要的数据，在迭代过程中，stream�
 
 集合：集合是一次计算所有的值，Stream的流只消费一次
 
-#### 3. 流操作
+#### 2. 流操作
 连接起来的流操作称为中间操作，关闭流的操作称为终端操作。
 ```
 List<String> collect = list.stream()
@@ -30,11 +31,11 @@ List<String> collect = list.stream()
 使用流一般包括三件事：①：一个数据源执行一个查询，②一个中间操作链，行程一条流的流水线，③：一个终端操作，执行流水线，生成最终结果。
 
 
-#### 4.使用流
+#### 3.使用流
 List<Integer> integerList =Arrays.asList(1,2,2,2,2,2,4,5,6,7,8);
 
 **筛选**：谓词筛选filter 
-```
+```java
  List<String> collect = list.stream()
         .filter(e -> e.getId() > 2)  //谓词筛选
         .collect(Collectors.toList()); // 终端操作    
@@ -42,9 +43,9 @@ List<Integer> integerList =Arrays.asList(1,2,2,2,2,2,4,5,6,7,8);
 
 ![img](image/clipboard3.png)
 
-distinct顾名思义**：去掉重复的。
+**distinct顾名思义**：去掉重复的。
 
-```
+```java
 integerList.stream()
            .filter(i->i%2==0)
            .distinct()
@@ -53,7 +54,7 @@ integerList.stream()
 ```
 
 **limit**：返回前N个数据，类似mysql的limit上。
-```
+```java
 integerList.stream()
         .sorted()
         .limit(2)
@@ -61,9 +62,9 @@ integerList.stream()
         排序后将输出前两个
 ```
 
-
 **skip**：过滤掉前n个元素。
-```
+
+```java
 integerList.stream()
         .sorted()
         .skip(2)
@@ -75,7 +76,7 @@ integerList.stream()
 **映射**：
 
 map:一般的用法：map就是取其中的一列
-```
+```java
 List<YxUser> list = Arrays.asList(
         new YxUser(1,"yanxgin","222","823721670@qq.com"),
         new YxUser(2,"12","222","823721670@qq.com"),
@@ -107,7 +108,7 @@ noneMatch 表示流中没有匹配改给定的谓词
 **查找**
 
 findAny方法表示返回当前流中的任意元素
-```
+```java
 Optional<YxUser> any = list.stream()
         .filter(e -> e.getId() > 5)
         .findAny();
@@ -121,9 +122,9 @@ Optional<YxUser> any = list.stream()
 
 **查找第一个元素 findFirst**
 
-#### 5.归约
+#### 4.归约
 **reduce**:首先要有一个初始值，还有第二个参数是执行规约的规则
-```
+```java
 List<Integer> integerList = Arrays.asList(1, 2, 2, 2, 2, 2, 4, 5, 6, 7, 8);
 Integer reduce = integerList.stream()
         .reduce(0, (x, y) -> x + y);
@@ -134,10 +135,10 @@ Integer reduce = integerList.stream()
 
 ![img](image/clipboard4.png)
 
-#### 6.数值流
+#### 5.数值流
 
 **收集器使用groupingBy**：通过用户的用户名进行分组如下
-```
+```java
 Map<String, List<YxUser>> collect = list.stream()
         .collect(groupingBy(YxUser::getUsername));
 //多级分组
@@ -160,7 +161,7 @@ Map<Integer, Long> collect = list.stream()
 如果是自己写的话，会嵌套多层循环，多级分组那么将会更难维护。
 Collectors.maxBy和Collectors.minBy在collect中使用，参数是自定义的Comparator
 
-```
+```java
 Comparator<YxUser> comparator=Comparator.comparingInt(YxUser::getId);
 Optional<YxUser> collect = list.stream()
         .collect(minBy(comparator));
@@ -170,7 +171,8 @@ collect(reducing( (d1, d2) -> d1.getId() < d2.getId() ? d1 : d2));
 ```
 
 **summingInt**，在collect中计算总和。
-```
+
+```java
 Integer collect = list.stream().collect(summingInt(YxUser::getId));
 // 如果使用reducing
 int totalCalories = list.stream().
@@ -188,7 +190,10 @@ Integer::sum);//累积函数
 > ![img](image/clipboard5.png)
 
 **joining连接字符串**：
-```
+
+​	joining实现字符串连接，是使用的StringBuilder，进行字符串拼接的
+
+```java
 String collect1 = list.stream().map(YxUser::getUsername).collect(joining());
 System.out.println("collect1:" + collect1);
 // 添加分割符
@@ -201,7 +206,7 @@ System.out.println("collect2:" + collect2);
 ![img](image/clipboard6.png)
 
 **求和的几种形式**：
-```
+```java
 list.stream().mapToInt(YxUser::getId).sum();
 
 list.stream().map(YxUser::getId).reduce(Integer::sum).get();
@@ -212,7 +217,7 @@ list.stream().collect(reducing(0, YxUser::getId, (x, y) -> x + y));
 ```
 
 **字符串拼接的几种形式**
-```
+```java
 list.stream().map(YxUser::getUsername).collect(reducing((s1,s2)->s1+s2)).get();
 
 list.stream().collect(reducing("",YxUser::getUsername,(s1,s2)->s1+s2));
@@ -222,11 +227,10 @@ String collect2 = list.stream().map(YxUser::getUsername)
 // 从性能上考虑，建议使用joining
 ```
 
-
 **partitioningBy分区函数**：
 
 返回的主键是 boolean类型，只有true和false两种情况。分区其实就是分组的一种特殊情况。
-```
+```java
 Map<Boolean, List<YxUser>> collect = list.stream()
 .collect(partitioningBy(YxUser::isX));
 System.out.println("collect: " + collect);
@@ -237,4 +241,52 @@ System.out.println("collect: " + collect);
 ![img](image/clipboard7.png)
 
 ![img](image/clipboard8.png)
+
+
+
+
+
+### 源码原理
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
