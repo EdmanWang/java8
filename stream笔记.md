@@ -217,7 +217,8 @@ list.stream().collect(reducing(0, YxUser::getId, (x, y) -> x + y));
 ```
 
 **字符串拼接的几种形式**
-```java
+
+```
 list.stream().map(YxUser::getUsername).collect(reducing((s1,s2)->s1+s2)).get();
 
 list.stream().collect(reducing("",YxUser::getUsername,(s1,s2)->s1+s2));
@@ -230,6 +231,7 @@ String collect2 = list.stream().map(YxUser::getUsername)
 **partitioningBy分区函数**：
 
 返回的主键是 boolean类型，只有true和false两种情况。分区其实就是分组的一种特殊情况。
+
 ```java
 Map<Boolean, List<YxUser>> collect = list.stream()
 .collect(partitioningBy(YxUser::isX));
@@ -244,36 +246,334 @@ System.out.println("collect: " + collect);
 
 
 
+### 收集器Collector源码
+
+​	 ![1565096905803](image/1565096905803.png)
+
+**Collector** 首先有5个主要的函数：supplier、accumulator、combiner、finisher、characteristics。
+
+**supplier** ：调用这个函数的时候会创建一个空的累加器实例，供数据收集使用。
+
+```java
+/**  官方的解释
+* A function that creates and returns a new mutable result container. 
+* 
+* @return a function which returns a new, mutable result container
+*/
+Supplier<A> supplier();
+```
+
+**accumulator** ： accumulator函数相当于是一个累加器，进行中间结果的处理。当遍历到流中第n个元素时，这个函数执行，时会有两个参数：保存归约结果的累加器（已收集了流中的前 n-1 个项目），还有第n个元素本身
+
+```java
+/** 官方的解释
+* A function that folds a value into a mutable result container. 
+* 
+* @return a function which folds a value into a mutable result container 
+*/
+BiConsumer<A, T> accumulator();
+```
+
+**finisher** ： finisher函数主要是最后的工作，主要是将最后的结果进行转换。finisher方法必须返回在累积过程的最后要调用的一个函数，以便将累加器对象转换为整个集合操作的最终结果。
+
+```java
+/** 
+* Perform the final transformation from the intermediate accumulation type 
+* {@code A} to the final result type {@code R}. 
+* 
+* <p>If the characteristic {@code IDENTITY_TRANSFORM} is 
+* set, this function may be presumed to be an identity transform with an 
+* unchecked cast from {@code A} to {@code R}. 
+* 
+* @return a function which transforms the intermediate result to the final 
+* result 
+*/
+Function<A, R> finisher();
+```
 
 
-### 源码原理
+
+> supplier、accumulator、finisher这三个函数就完全够流的顺序归约了
+>
+> ![1565097815384](image/1565097815384.png)
+
+**combiner**：combiner方法会返回一个供归约操作使用的函数，它定义了对流的各个子部分进行并行处理时，各个子部分归约所得的累加器要如何合并。
+
+```java
+/** 
+* A function that accepts two partial results and merges them.  The 
+* combiner function may fold state from one argument into the other and 
+* return that, or may return a new result container. 
+* 
+* @return a function which combines two partial results into a combined 
+* result 
+*/
+BinaryOperator<A> combiner();
+```
+
+> supplier、accumulator、finisher这三个函数加上combiner这个函数，可以对流进行并行归约了，有点相当于并发环境的fork/join框架，他主要的步骤有一下几步：
+>
+> 第一步：将原始的流分成子流，知道条件不能分为止(分得太小也不好)
+>
+> 第二步：所有的子流并行运行。
+>
+> 第三步：使用收集器combiner方法返回的函数，将所有的部分合并。
+>
+> 这个流程和并发的fork/join差不多，可以参考我一篇博客：https://www.cnblogs.com/yangdagaoge/articles/10541460.html。
+
+**characteristics** ：这个方法就是返回一个不可变的Characteristics，表示收集器的行为：
+
+​	①：UNORDERED——归约结果不受流中项目的遍历和累积顺序的影响
+
+​    ②：CONCURRENT——accumulator函数可以从多个线程同时调用，且该收集器可以并行归约流。
+
+​	③：IDENTITY_FINISH——这表明完成器方法返回的函数是一个恒等函数，可以跳过。
 
 
 
+但是点击Collector的实现类的时候发现他只有一个Collectors实现类并且在Collectors中定义了一个内部类CollectorImpl，其中的实现特别简单。如下：
+
+```java
+/**
+     * Simple implementation class for {@code Collector}.
+     *
+     * @param <T> the type of elements to be collected
+     * @param <R> the type of the result
+     */
+    static class CollectorImpl<T, A, R> implements Collector<T, A, R> {
+        // 一系列的成员函数
+        private final Supplier<A> supplier;
+        private final BiConsumer<A, T> accumulator;
+        private final BinaryOperator<A> combiner;
+        private final Function<A, R> finisher;
+        private final Set<Characteristics> characteristics;
+
+        CollectorImpl(Supplier<A> supplier,
+                      BiConsumer<A, T> accumulator,
+                      BinaryOperator<A> combiner,
+                      Function<A,R> finisher,
+                      Set<Characteristics> characteristics) {
+            this.supplier = supplier;
+            this.accumulator = accumulator;
+            this.combiner = combiner;
+            this.finisher = finisher;
+            this.characteristics = characteristics;
+        }
+
+        CollectorImpl(Supplier<A> supplier,
+                      BiConsumer<A, T> accumulator,
+                      BinaryOperator<A> combiner,
+                      Set<Characteristics> characteristics) {
+            this(supplier, accumulator, combiner, castingIdentity(), characteristics);
+        }
+
+        @Override
+        public BiConsumer<A, T> accumulator() {
+            return accumulator;
+        }
+
+        @Override
+        public Supplier<A> supplier() {
+            return supplier;
+        }
+
+        @Override
+        public BinaryOperator<A> combiner() {
+            return combiner;
+        }
+
+        @Override
+        public Function<A, R> finisher() {
+            return finisher;
+        }
+
+        @Override
+        public Set<Characteristics> characteristics() {
+            return characteristics;
+        }
+    }
+```
 
 
 
+#### 1.toList源码
+
+```java
+ /**
+     * Returns a {@code Collector} that accumulates the input elements into a
+     * new {@code List}. There are no guarantees on the type, mutability,
+     * serializability, or thread-safety of the {@code List} returned; if more
+     * control over the returned {@code List} is required, use {@link #toCollection(Supplier)}.
+     *
+     * @param <T> the type of the input elements
+     * @return a {@code Collector} which collects all the input elements into a
+     * {@code List}, in encounter order
+     */
+    public static <T>
+    Collector<T, ?, List<T>> toList() {
+        return new CollectorImpl<>((Supplier<List<T>>) ArrayList::new,
+                        //创建一个ArrayList类型的Supplier收集器
+        				List::add,// 使用list的add函数将流中的数据添加到空结果容器中
+                        (left, right) -> { left.addAll(right); return left; },
+                        // lambda 表达式，将右边的list添加到左边的list中，这就是相当于一个combiner函数
+                        CH_ID);// 表示收集器的行为参数
+    }
+```
+
+**使用toList**
+
+```java
+List<User> collect = list.stream().collect(Collectors.toList());
+```
+
+> toSet 的源码也是类型，不过吧Supplier 换成了 (Supplier<Set<T>>) HashSet::new
+>
+> ```java
+> /**
+>      * Returns a {@code Collector} that accumulates the input elements into a
+>      * new {@code Set}. There are no guarantees on the type, mutability,
+>      * serializability, or thread-safety of the {@code Set} returned; if more
+>      * control over the returned {@code Set} is required, use
+>      * {@link #toCollection(Supplier)}.
+>      *
+>      * <p>This is an {@link Collector.Characteristics#UNORDERED unordered}
+>      * Collector.
+>      *
+>      * @param <T> the type of the input elements
+>      * @return a {@code Collector} which collects all the input elements into a
+>      * {@code Set}
+>      */
+>     public static <T>
+>     Collector<T, ?, Set<T>> toSet() {
+>         return new CollectorImpl<>((Supplier<Set<T>>) HashSet::new, Set::add,
+>                                    (left, right) -> { left.addAll(right); return left; },
+>                                    CH_UNORDERED_ID);
+>     }
+> ```
 
 
 
+#### 2. 字符拼接joining源码
+
+**①.无分隔符**
+
+```java
+ /**
+     * Returns a {@code Collector} that concatenates the input elements into a
+     * {@code String}, in encounter order.
+     *
+     * @return a {@code Collector} that concatenates the input elements into a
+     * {@code String}, in encounter order
+     *
+     * CharSequence：这个是字符串序列接口
+     * joining的源码可得，实现字符串拼接是使用 StringBuilder实现的，
+     */
+    public static Collector<CharSequence, ?, String> joining() {
+        return new CollectorImpl<CharSequence, StringBuilder, String>(
+                // 创建StringBuilder的结果容器
+            	// StringBuilder::append：拼接函数(累加器部分)
+                StringBuilder::new, StringBuilder::append,
+            	// 联合成一个值，combiner部分
+                (r1, r2) -> { r1.append(r2); return r1; },
+            	// 最后结果的转换
+                StringBuilder::toString, CH_NOID);
+    }
+
+```
+
+>CharSequence 这是个字符串的序列接口，String、StringBuffer、StringBuilder也是实现这个接口。它和String的区别就是，String可读不可变，CharSequence是可读可变
+>
+>![1565102894858](image/1565102894858.png)
+
+**使用字符串拼接**
+
+```java
+static List<User> list = Arrays.asList(
+            new User("y杨鑫", 50, 5455552),
+            new User("张三", 18, 66666), 
+            new User("李四", 23, 77777),
+            new User("王五", 30, 99999),
+            new User("赵柳", 8, 11111),
+            new User("王八蛋", 99, 23233)
+    );
+
+    public static void main(String[] args) {
+
+        String collect = list.stream().map(User::getUsername)
+                .collect(joining());
+        System.out.println("collect: " + collect);
+    }
+////////////////////////////////////////输出/////////////////////////
+collect: y杨鑫张三李四王五赵柳王八蛋
+```
 
 
 
+**②.带分割符的**
 
+```java
+/**
+     * Returns a {@code Collector} that concatenates the input elements,
+     * separated by the specified delimiter, in encounter order.
+     * 返回一个带分割符的拼接串
+     * @param delimiter the delimiter to be used between each element
+     * @return A {@code Collector} which concatenates CharSequence elements,
+     * separated by the specified delimiter, in encounter order
+     * 将分割符传给了joining三参数的重载函数
+     */
+    public static Collector<CharSequence, ?, String> joining(CharSequence delimiter){
+        return joining(delimiter, "", "");
+    }
 
+	/**
+     * Returns a {@code Collector} that concatenates the input elements,
+     * separated by the specified delimiter, with the specified prefix and
+     * suffix, in encounter order.
+     *
+     * @param delimiter the delimiter to be used between each element
+     * @param  prefix the sequence of characters to be used at the beginning
+     *                of the joined result
+     * @param  suffix the sequence of characters to be used at the end
+     *                of the joined result
+     * @return A {@code Collector} which concatenates CharSequence elements,
+     * separated by the specified delimiter, in encounter order
+     *
+     *  在这个函数中，使用了一个叫StringJoiner的类，这个是java8的封装类，主要的功能是
+     *  按照 分割符delimiter，字符串开始 prefix，字符串结尾suffix，进行字符串的拼接
+     */
+    public static Collector<CharSequence, ?, String> joining(CharSequence delimiter,
+                                                             CharSequence prefix,
+                                                             CharSequence suffix) {
+        return new CollectorImpl<>(
+            	// 创建一个Supplier结果容器
+                () -> new StringJoiner(delimiter, prefix, suffix),
+            	// 字符串的添加相当于 accumulator累加器部分；merge是联合将两个数值整合成一个，相当于combiner部分
+                StringJoiner::add, StringJoiner::merge,
+            	// toString做最后的结果转换
+                StringJoiner::toString, CH_NOID);
+    }
+```
 
+**运行样例**
 
+```java
+        String collect = list.stream().map(User::getUsername)
+                .collect(joining());
+        System.out.println("collect: " + collect);
+        
+        String collect1 = list.stream().map(User::getUsername)
+                .collect(joining(","));
+        System.out.println("collect1: " + collect1);
+        
+        String collect2 = list.stream().map(User::getUsername)
+                .collect(joining(",","[","]"));
+        System.out.println("collect2: " + collect2);
+///////////////////////输出//////////////////////////////
+collect: y杨鑫张三李四王五赵柳王八蛋
+collect1: y杨鑫,张三,李四,王五,赵柳,王八蛋
+collect2: [y杨鑫,张三,李四,王五,赵柳,王八蛋]
 
-
-
-
-
-
-
-
-
-
-
+```
 
 
 
