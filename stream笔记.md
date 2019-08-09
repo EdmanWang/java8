@@ -325,7 +325,7 @@ BinaryOperator<A> combiner();
 
 ​	①：UNORDERED——归约结果不受流中项目的遍历和累积顺序的影响
 
-​    ②：CONCURRENT——accumulator函数可以从多个线程同时调用，且该收集器可以并行归约流。
+​        ②：CONCURRENT——accumulator函数可以从多个线程同时调用，且该收集器可以并行归约流。
 
 ​	③：IDENTITY_FINISH——这表明完成器方法返回的函数是一个恒等函数，可以跳过。
 
@@ -574,15 +574,382 @@ collect1: y杨鑫,张三,李四,王五,赵柳,王八蛋
 collect2: [y杨鑫,张三,李四,王五,赵柳,王八蛋]
 
 ```
+> StringJoiner源码:
+>
+> ```java
+> public final class StringJoiner {
+>     /**
+>      * prefix：表示字符串拼接的前缀
+>      * suffix：表示字符串拼接的结尾
+>      * delimiter： 表示分割符
+>      * */
+>     private final String prefix;
+>     private final String delimiter;
+>     private final String suffix;
+> 
+>     /*
+>      * StringBuilder的值。构造器从prefix开始添加元素，delimiter分割，但是没有
+>      * 结尾符suffix，那么我们每次会更容易的去拼接字符串
+>      */
+>     private StringBuilder value;
+> 
+>     /*
+>      * 默认情况，由prefix和suffix拼接的字符串，在返回值的时候使用toString转换。
+>      * 当没有元素添加的时候，那么这个为空，这很有可能被用户去覆盖一些其他值，包括空串
+>      */
+>     private String emptyValue;
+> 
+>     /**
+>      * 构造器只有delimiter分隔符，prefix和suffix将默认为空串，
+>      */
+>     public StringJoiner(CharSequence delimiter) {
+>         this(delimiter, "", "");
+>     }
+> 
+>     /**
+>      * 三参数的构造器
+>      */
+>     public StringJoiner(CharSequence delimiter,
+>                         CharSequence prefix,
+>                         CharSequence suffix) {
+>         Objects.requireNonNull(prefix, "The prefix must not be null");
+>         Objects.requireNonNull(delimiter, "The delimiter must not be null");
+>         Objects.requireNonNull(suffix, "The suffix must not be null");
+>         // make defensive copies of arguments
+>         this.prefix = prefix.toString();
+>         this.delimiter = delimiter.toString();
+>         this.suffix = suffix.toString();
+>         this.emptyValue = this.prefix + this.suffix;
+>     }
+> 
+>     /**
+>      * 设置空值
+>      */
+>     public StringJoiner setEmptyValue(CharSequence emptyValue) {
+>         this.emptyValue = Objects.requireNonNull(emptyValue,
+>                 "The empty value must not be null").toString();
+>         return this;
+>     }
+> 
+>     /**
+>      *
+>      * 重写的toString，字符串将是prefix开始，suffix结尾，除非没有添加任何元素，那
+>      * 么就返回空值
+>      */
+>     @Override
+>     public String toString() {
+>         if (value == null) {
+>             return emptyValue;
+>         } else {
+>             if (suffix.equals("")) {
+>                 return value.toString();
+>             } else {
+>                 int initialLength = value.length();
+>                 String result = value.append(suffix).toString();
+>                 // reset value to pre-append initialLength
+>                 value.setLength(initialLength);
+>                 return result;
+>             }
+>         }
+>     }
+> 
+>     /**
+>      * 添加一个拼接的串
+>      *
+>      * @param  newElement The element to add
+>      * @return a reference to this {@code StringJoiner}
+>      */
+>     public StringJoiner add(CharSequence newElement) {
+>         prepareBuilder().append(newElement);
+>         return this;
+>     }
+> 
+>     /**
+>      * 将拼接的字串合并
+>      */
+>     public StringJoiner merge(StringJoiner other) {
+>         Objects.requireNonNull(other);
+>         if (other.value != null) {
+>             final int length = other.value.length();
+>             // lock the length so that we can seize the data to be appended
+>             // before initiate copying to avoid interference, especially when
+>             // merge 'this'
+>             StringBuilder builder = prepareBuilder();
+>             builder.append(other.value, other.prefix.length(), length);
+>         }
+>         return this;
+>     }
+> 
+>     private StringBuilder prepareBuilder() {
+>         if (value != null) {
+>             value.append(delimiter);
+>         } else {
+>             value = new StringBuilder().append(prefix);
+>         }
+>         return value;
+>     }
+> 
+>     /**
+>      * 返回长度
+>      */
+>     public int length() {
+>         // Remember that we never actually append the suffix unless we return
+>         // the full (present) value or some sub-string or length of it, so that
+>         // we can add on more if we need to.
+>         return (value != null ? value.length() + suffix.length() :
+>                 emptyValue.length());
+>     }
+> }
+> ```
+>
+> 测试
+>
+> ```java
+> StringJoiner joiner = new StringJoiner(",", "[", "]");
+>         for (YxUser x : list) {
+>             joiner.add(x.getUsername());
+>         }
+>         joiner.merge(joiner);
+> 		// 如果没有merge将输出：joiner: [yanxgin,12,yan34xgin,56,78,90,666]
+> 
+> /**
+> 使用joiner.merge(joiner)，将输出joiner: [yanxgin,12,yan34xgin,56,78,90,666,yanxgin,12,yan34xgin,56,78,90,666],使用merge将另外一个的StringJoiner合并进来，所以在这儿，他将已经又合并了一次
+> */
+>         System.out.println("joiner: " + joiner);
+> ```
+>
+> 
+
+#### 3.toCollection源码
+
+```java
+/**
+     *
+     * 返回一个{@Code Collector}收集器（输入的元素累加到新的收集器）
+     * {@Code Collection}集合是由工厂创建
+     *
+     * @param <T> 输入类型
+     * @param <C> 收集器{@code Collection}的结果类型
+     * @param 这个集合工厂collectionFactory将返回一个新的适当类型的收集器
+     * @return 按照顺序将输入的元素收集到一个{@Code Collector}并且返回
+     *
+     * 函数功能：按照collectionFactory收集器的类型重新收集流中的数据，
+     * 例如：
+     * {@Code
+     *      LinkedList<YxUser> collect1 = list.stream().collect(Collectors.toCollection(LinkedList::new));
+     *      // LinkedList可以换成Collection的其他集合类型
+     * }
+     */
+    public static <T, C extends Collection<T>>
+    Collector<T, ?, C> toCollection(Supplier<C> collectionFactory) {
+        return new CollectorImpl<>(collectionFactory, Collection<T>::add,
+                (r1, r2) -> { r1.addAll(r2); return r1; },
+                CH_ID);
+    }
+```
+
+实现列子
+
+```java
+       // toCollection的参数的意义就是创建一个类型的集合来收集他。
+        list.stream().collect(Collectors.toCollection(LinkedList::new));
+        list.stream().collect(Collectors.toCollection(TreeSet::new));
+        ......
+```
+
+> toList、toSet、toCollection区别：
+>
+> ​	toList：表示可以重复、有序。
+>
+> ​	toSet：表示不可重复、无序。
+>
+> ​	toCollection：自定义实现Collection的数据结构收集。
 
 
 
+#### 4. mapping源码
 
+```java
+ /**
+     * Adapts a {@code Collector} accepting elements of type {@code U} to one
+     * accepting elements of type {@code T} by applying a mapping function to
+     * each input element before accumulation.
+     *
+     * 在输入元素的累加前，使用mapping函数将一个接受U类型({@code U})的收集器调
+     * 整为接受T类型({@code T})的收集器。**感觉翻译不太对。
+     *
+     * @apiNote
+     * {@code mapping()} mapping适用于多层次的筛选,
+     * 例如，Person实体类集合中，计算出每个城市的姓名、
+     * <pre>{@code
+     *     Map<City, Set<String>> lastNamesByCity
+     *         = people.stream().collect(groupingBy(Person::getCity,
+     *                                              mapping(Person::getLastName, toSet())));
+     * }</pre>
+     *
+     * @param <T> 输入元素的类型。
+     * @param <U> 接受元素的类型
+     * @param <A> 收集器的中间累加器的类型
+     * @param <R> 收集器的结果类型
+     * @param 应用于输入元素的函数
+     * @param downstream 收集器接受一个mapper的值
+     * @return a collector which applies the mapping function to the input
+     * elements and provides the mapped results to the downstream collector
+     */
+    public static <T, U, A, R>
+    Collector<T, ?, R> mapping(Function<? super T, ? extends U> mapper,
+                               Collector<? super U, A, R> downstream) {
+        BiConsumer<A, ? super U> downstreamAccumulator = downstream.accumulator();
+        return new CollectorImpl<>(downstream.supplier(),
+                (r, t) -> downstreamAccumulator.accept(r, mapper.apply(t)),
+                downstream.combiner(), downstream.finisher(),
+                downstream.characteristics());
+    }
+```
 
+样例
 
+```java
+// 获取邮件的性别
+list.stream().collect(groupingBy(YxUser::getEmail, mapping(YxUser::getSex, toList())));
+```
 
+#### 5.collectingAndThen
 
+```java
+/**
+     *
+     * 调整一个收集器{@Code Collector} 去完成一个额外的转换。例如，
+     * {@link #toList()}的调节使得收集器总是产生一个不可变的list。
+     * <pre>{@code
+     *     List<String> people
+     *         = people.stream().collect(collectingAndThen(toList(), Collections::unmodifiableList));
+     * }</pre>
+     *
+     * @param <T> 输入元素的类型
+     * @param <A> downstream collector收集器中间累加的结果类型
+     * @param <R> downstream collector收集器的结果
+     * @param <RR> 结果收集器的类型
+     * @param downstream a collector
+     * @param finisher 是一个完成最终功能的函数
+     * @return 返回一个收尾完成的结果搜集器
+     */
+    public static<T,A,R,RR> Collector<T,A,RR> collectingAndThen(Collector<T,A,R> downstream,
+                                                                Function<R,RR> finisher) {
+        // 获取收集器的行为特性。
+        Set<Collector.Characteristics> characteristics = downstream.characteristics();
+        // 如果这个搜集器 是一个恒等函数
+        if (characteristics.contains(Collector.Characteristics.IDENTITY_FINISH)) {
+            if (characteristics.size() == 1)
+                // 长度如果为1，那么置空
+                characteristics = Collectors.CH_NOID;
+            else {
+                // 使用EnumSet枚举集合类来创建一个具有characteristics特征的枚举。
+                characteristics = EnumSet.copyOf(characteristics);
+                // 去掉恒等行为
+                characteristics.remove(Collector.Characteristics.IDENTITY_FINISH);
+                //unmodifiableSet 表示是不可改的Set,与此类似的还有 unmodifiableMap
+                characteristics = Collections.unmodifiableSet(characteristics);
+            }
+        }
+        /////不是太明白为什么要做这个if的操作。
+        return new CollectorImpl<>(downstream.supplier(),
+                downstream.accumulator(),
+                downstream.combiner(),
+                downstream.finisher().andThen(finisher),
+                characteristics);
+    }
+```
 
+**获取性别分组中最高的Id**
+
+```java
+list.stream().collect(groupingBy(YxUser::getSex, collectingAndThen(maxBy(Comparator.comparingInt(YxUser::getId)), Optional::get)));
+```
+
+**输出**
+
+```
+collect3: {0=YxUser{id=6, username='90', password='222', lastVisitTime=null, email='8237216470@qq.com', activation=null, createTime=null}, 1=YxUser{id=7, username='666', password='222', lastVisitTime=null, email='823721670@qq.com', activation=null, createTime=null}}
+```
+
+#### 6.counting
+
+```java
+ /**
+     * 返回一个流的数量，如果是空，那么返回为0.
+     *
+     * @implSpec
+     * 这个函数的实现是依靠于 reducing实现的。
+     * <pre>{@code
+     *     reducing(0L, e -> 1L, Long::sum)
+     * }</pre>
+     *
+     * @param <T> 输入元素的类型
+     * @return a {@code Collector} 返回一个count
+     */
+    public static <T> Collector<T, ?, Long>
+    counting() {
+        return reducing(0L, e -> 1L, Long::sum);
+    }
+```
+
+**几种count的方式**
+
+```java
+		long count = list.stream().count();
+        System.out.println("count: " + count);
+        Long collect4 = list.stream().collect(counting());
+        System.out.println("collect4: " + collect4);
+        list.stream().collect(reducing(0, YxUser::getId, (x, y) -> x + y));
+```
+
+ #### 7.minBy
+
+```java
+/**
+     *
+     * minBy其实实现的原理也就是
+     *  return (a,b)->comparator.compare(a,b) < 0 ? a : b
+     *
+     * 但是是使用Optional<T>来接受，防止空值
+     *
+     * @implSpec
+     * This produces a result equivalent to:
+     * <pre>{@code
+     *     reducing(BinaryOperator.minBy(comparator))
+     * }</pre>
+     *
+     * @param <T> 输入元素的类型
+     * @param comparator 是一个比较器
+     * @return 一个最小值
+     */
+    public static <T> Collector<T, ?, Optional<T>>
+    minBy(Comparator<? super T> comparator) {
+        return reducing(BinaryOperator.minBy(comparator));
+    }
+```
+
+**使用minBy**
+
+```java
+       //自己构造的比较器，是依据YxUser中的Id来比较。
+		Comparator<YxUser> comparator=Comparator.comparingInt(YxUser::getId);
+        list.stream().collect(groupingBy(YxUser::getUsername, minBy(comparator)));
+```
+
+> maxBy和这个差不多。
+>
+> summingInt 函数，是返回最大值、最小值、平均值、count值等，使用getter方法获取即可
+>
+> ```java
+> IntSummaryStatistics collect5 = list.stream().collect(summarizingInt(YxUser::getId));
+>         collect5.getAverage();
+> ```
+>
+> 由于类型原因，还提供了summingLong、summingDouble。
+>
+> 求平均值的：averagingInt、averageingLong、averagingDouble
 
 
 
