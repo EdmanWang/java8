@@ -119,8 +119,38 @@ Optional<YxUser> any = list.stream()
 > > >
 > > >> T get()会在值存在时返回值，否则抛出一个NoSuchElement异常。T orElse(T other)会在值存在时返回值，否则返回一个默认值
 
-
 **查找第一个元素 findFirst**
+
+
+
+**peek**
+
+表示在一个流操作之前进行插入一段操作
+
+```java
+List<Integer> result =   numbers.stream()       
+    .peek(x -> System.out.println("from stream: " + x))       
+    .map(x -> x + 17)          
+    .peek(x -> System.out.println("after map: " + x))          
+    .filter(x -> x % 2 == 0)         
+    .peek(x -> System.out.println("after filter: " + x))        
+    .limit(3)          
+    .peek(x -> System.out.println("after limit: " + x))       
+    .collect(toList());
+// 输出
+	from stream: 2 
+	after map: 19
+	from stream: 3 
+    after map: 20 
+    after filter: 20 
+    after limit: 20 
+    from stream: 4 
+    after map: 21 
+    from stream: 5 
+    after map: 22 after filter: 22 after limit: 22
+```
+
+
 
 #### 4.归约
 **reduce**:首先要有一个初始值，还有第二个参数是执行规约的规则
@@ -950,6 +980,248 @@ collect3: {0=YxUser{id=6, username='90', password='222', lastVisitTime=null, ema
 > 由于类型原因，还提供了summingLong、summingDouble。
 >
 > 求平均值的：averagingInt、averageingLong、averagingDouble
+
+
+
+### 自定义一个收集器
+
+​	在Collector和Collectors的源码得知，在Collectors中，使用内部类CollectorImpl来实现的Collector，然后其他的toList、joining等一系列的操作都是，依托于这个内部类CollectorImpl，所以我们可以自定义一个收集器。他的功能是：使用ArrayList来收集流中的数据：
+
+```java
+/**
+ * @author yangxin
+ * @time 2019/8/6  15:02
+ */
+public class ToListCollector<T> implements Collector<T, List<T>, List<T>> {
+
+    // 既然是使用ArrayList来收集流中的数据，那么在supplier中要创建一个ArrayList结果容器，
+    //在CollectorImpl中，他在这儿将创建圈交给了外部。
+    @Override
+    public Supplier<List<T>> supplier() {
+        return ArrayList::new;
+    }
+
+    // 累加器部分，肯定就是添加元素
+    @Override
+    public BiConsumer<List<T>, T> accumulator() {
+        return List::add;
+    }
+
+    // 联合部分，量右边的值归并到左边
+    @Override
+    public BinaryOperator<List<T>> combiner() {
+        return (list1, list2) -> {
+            list1.addAll(list2);
+            return list1;
+        };
+    }
+
+    @Override
+    public Function<List<T>, List<T>> finisher() {
+        return Function.identity();
+    }
+
+    @Override
+    public Set<Characteristics> characteristics() {
+        // 为收集器添加IDENTITY_FINISH和CONCURRENT标记
+        return Collections.unmodifiableSet(EnumSet.of(IDENTITY_FINISH, CONCURRENT));
+    }
+}
+```
+
+**使用**
+
+```java
+List<YxUser> list = Arrays.asList(
+                new YxUser(1, "yanxgin", "222", "8237251670@qq.com", 1, true),
+                new YxUser(2, "12", "222", "8237216670@qq.com", 1, false),
+                new YxUser(3, "yan34xgin", "222", "823721670@qq.com", 0, true),
+                new YxUser(4, "56", "222", "823721670@qq.com", 0, false),
+                new YxUser(5, "78", "222", "82372163@qq.com", 1, false),
+                new YxUser(6, "90", "222", "8237216470@qq.com", 0, false),
+                new YxUser(7, "666", "222", "823721670@qq.com", 1, true)
+        );
+
+        // 自定义的收集器
+        List<YxUser> collect = list.stream()
+                .collect(new ToListCollector<YxUser>());
+        System.out.println("collect: " + collect);
+```
+
+> 自己写的ToListCollector 收集器，和toList的差不多，估计唯一的区别，就是toList有工厂类自己创建，自定义的收集器需要new。我们可以创建出适用自己的收集器
+
+
+
+### 优化代码
+
+​	在很多情况下使用java8的特性可以优化很多代码，使得代码更清晰、更易读。
+
+​	①：使用Lambda表达式取代匿名类。
+
+```java
+ 		Runnable runnable=new Runnable() {
+            @Override
+            public void run() {
+                System.out.println("word");
+            }
+        };
+        Runnable runnable1 = () -> System.out.println("hello");
+```
+
+> 需要注意的地方：
+>
+> Lambda表达式中的this,和super的含义是不同的。在匿名类中，this表示本身；但在Lambda中，他表示的是包含类。然而，匿名类可以屏蔽包含类的变量，Lambda不能屏蔽。
+>
+> 还有一个问题是：假如有重载函数的时候，因为Lambda表达式的参数根据上下文来确定的，所以会出现有多个匹配项的存在。这个编译器会帮忙解决这个问题比如：IDEA
+>
+> ```java
+>        int n=10;
+>         Runnable runnable2 = () -> {
+>             int n = 2;//会报错
+>             System.out.println("n: " + n);
+>         };
+> 
+>         Runnable runnable = new Runnable() {
+>             @Override
+>             public void run() {
+>                 int n = 2;
+>                 System.out.println("word" + n);
+>             }
+>         };
+>         runnable.run();
+>         runnable2.run();
+> ```
+>
+> ![1565257047549](D:\学习资料\学习笔记\markdownImage\1565257047549.png)
+
+​	②：使用方法引用重构Lambda表达式。
+
+​	③：使用StreamAPI重构命令式的数据处理。
+
+
+
+### 使用Lambda重构面对对象的设计模式
+
+#### 1.策略模式
+
+​	策略模式就是解决一类算法的通用解决方案。通常有3部分组成：①：一个母接口(他代表某个需求)。②：实现母接口的各种策略方法。③：策略对象的客户。
+
+![1565313596315](D:\学习资料\学习笔记\markdownImage\1565313596315.png)
+
+在传统的方法中，我们要使用策略模式这三个步骤不可少，但是有时候功能就比较简单，比如比较学生成绩大小，找出性别男女的人数、成绩平均值等，那么你需要去实现对应的策略函数，然后使用的时候如下：
+
+```java
+// IsAllLowerCase、IsNumeric就是实现的策略函数
+Validator numericValidator = new Validator(new IsNumeric()); 
+boolean b1 = numericValidator.excute("aaaa");  
+Validator lowerCaseValidator = new Validator(new IsAllLowerCase ());
+boolean b2 = lowerCaseValidator.excute("bbbb"); 
+```
+
+使用Lambda，那么就会省略策略实现部分：
+
+```java
+// 函数式接口
+public interface Factory {
+    boolean execete(String s);
+}
+
+// 客户端
+public class FactoryImpl {
+
+    private final Factory factory;
+
+    public FactoryImpl(Factory factory) {
+        this.factory = factory;
+    }
+
+    public boolean execute(String s){
+        return factory.execete(s);
+    }
+}
+
+		// 使用部分 策略模式，在简单的策略就用实现多余的策略方法。
+		FactoryImpl factory = new FactoryImpl((String s) -> s.matches("[a-z]+"));
+        System.out.println("boolean: " + factory.execute("ddd"));
+
+```
+
+#### 2.模板方法
+
+​	模板方法就是希望使用这个算法，并且呢可以支持对其中的修改，才能达到希望的效果，正常情况是使用一个抽象的方法，让别人继承这个类的时候实现方法，实现自己的功能。每一次都需要实现的话，重复度太大了。
+
+ ```java
+    public YxUser processCustomer(Consumer<YxUser> makeCustomerHappy) {
+        YxUser c = new YxUser();
+        makeCustomerHappy.accept(c);
+        return c;
+    }
+    
+    /**
+    * 在processCustomer中直接使用Lambda将重写的部分写进去，这样避免了大量的继承实现。
+    */
+    YxUser yx = new FactoryImpl().processCustomer(e -> e.setUsername("杨鑫"));
+ ```
+
+
+
+#### 3.观察者模式
+
+​	一个事件发生，主题去通知所有观察者，观察者会根据自己观察的东西进行操作。
+
+![1565330835327](D:\学习资料\学习笔记\markdownImage\1565330835327.png)
+
+实现观察者模式：①观察者Observer接口；②实现Observer接口的各种观察者。③实现观察者注册和通知的Subject接口和其实现。
+
+使用Lambda，在简单的观察者模式来说，可以避免第②部分的操作，但是观察者的逻辑过多时，感觉lambda不适应。
+
+> mark
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
