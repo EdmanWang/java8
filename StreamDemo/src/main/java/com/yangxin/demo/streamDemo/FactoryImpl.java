@@ -19,10 +19,10 @@ public class FactoryImpl {
     public boolean execute(String s) {
         return factory.execete(s);
     }
-
+/*
     public YxUser processCustomer(Consumer<YxUser> makeCustomerHappy) {
         YxUser c = new YxUser();
         makeCustomerHappy.accept(c);
         return c;
-    }
+    }*/
 }

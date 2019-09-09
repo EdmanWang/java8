@@ -1,66 +1,233 @@
-### Stream使用
+### Stream
 
-#### 1.Stream
-**Stream和集合的区别**：
+#### stream 是什么
+
+​	流是Java 8的新成员，允许以声明式来处理数据的集合(通过查询语句来表示，并不是像以前的一样写一个方法来处理)，就现在来说，你可以把它们看成遍历数据集的高级迭代器。
+
+
+
+有下面这个集合YxUser这个pojo类记录的用户的基本信息，假如我们要查找出年龄在18-30的用户的姓名(并且按照年龄降序)在以前我们是怎么做的？
+
+![1567986965175](D:\学习资料\学习笔记\markdownImage\1567986965175.png)
+
+
+
+java7：
+
+```java
+ 		List<YxUser> ageList = new ArrayList<>();
+        for (YxUser y : list) {
+            if (y.getAge() <= 30 && y.getAge() >= 18) {
+                ageList.add(y);
+            }
+        }
+        Collections.sort(ageList, new Comparator<YxUser>() {
+            @Override
+            public int compare(YxUser d1, YxUser d2) {
+                return Integer.compare(d1.getAge(), d2.getAge());
+            }
+        });
+        List<String> name = new ArrayList<>();
+        for (YxUser d : ageList) {
+            name.add(d.getUsername());
+        }
+```
+
+虽然这个方式能够实现我们想要的东西，但是，我们使用了好几个变量，并且他们的作用只有一次，但是这个写感觉比较麻烦。如果别人要 id在3-9之间的的用户的姓名呢，这些又要改动。-->java8使用流
+
+
+
+java8：
+
+```java
+ List<String> collect = list.stream()
+                .filter(e -> e.getAge() <= 30 && e.getAge() >= 18)
+                .sorted(comparing(YxUser::getAge))
+                .map(YxUser::getUsername)
+                .collect(Collectors.toList());
+System.out.println("collect: " + collect);
+```
+
+
+
+> 并且这段代码可以利用多核框架执行
+>
+> ```java
+>  List<String> collect = list.parallelStream()
+>                 .filter(e -> e.getAge() <= 30 && e.getAge() >= 18)
+>                 .sorted(comparing(YxUser::getAge))
+>                 .map(YxUser::getUsername)
+>                 .collect(Collectors.toList());
+> System.out.println("collect: " + collect);
+> ```
+
+
+
+在java8中：
+
+1.代码是以声明式方式来写的:想完成什么(filter筛选年龄) 而不是像java7一样如果来实现(利用循环和if来控制)。如果有新的需求，那么不用重新复制代码，只需要更改主要条件即可。
+
+
+
+2.把几个基础操作链接起来，来表达复杂的数据处理流水线（在filter后面接上sorted、map和collect操作，示意图如下），同时保持代码清晰可读。filter的结果被传给了sorted方法，再传给map方法，最后传给collect方法
+
+![1567992407343](D:\学习资料\学习笔记\markdownImage\1567992407343.png)
+
+
+
+而且新的stream api 表达能力特别强，写出来的东西别人可能不会，但是别人能够看懂你要做什么。
+
+
+
+#### **stream** 特点
+
+声明性：简洁、易读
+
+声明性：简洁、易读
+
+可复用：比较灵活
+
+可并行：性能更好
+
+#### 流和集合的关系 
+
+![1567993051828](D:\学习资料\学习笔记\markdownImage\1567993051828.png)
+
+流和集合的迭代器类似，只能够遍历一次。遍历完成后说明这个流已经被消费了。
 
 stream：stream是只计算当前需要的数据，在迭代过程中，stream是放在内部迭代的，集合的迭代是放在外部。在外部迭代就会需要自己解决管理并行的问题。   
 
+
+
+#### 外部迭代与内部迭代
+
+
+
+**外部迭代** ：使用Collection接口需要用户去做迭代（比如用for-each)。
+
+**内部迭代**： 使用Streams库，它帮你把迭代做了，还把得到的流值存在了某个地方，你只要给出一个函数说要干什么就可以了。
+
+
+
+在上一个例子的筛选年龄18-30的两种方法，第一个方法就是外部迭代，第二个方法就是内部迭代。
+
 ![img](image/clipboard.png)
 
-集合：集合是一次计算所有的值，Stream的流只消费一次
+两者的区别：
 
-#### 2. 流操作
-连接起来的流操作称为中间操作，关闭流的操作称为终端操作。
+​       外部迭代：
+
+1. Java 的 for-each 循环/迭代本质上是有序的，它必须按照容器指定的顺序处理元素。
+
+2. 它限制了 JVM控制流程的可能性，而正是这种可能性使得 JVM 可以通过重新排序、并行处理、短路、延迟处理来提供更好的性能。
+
+   内部迭代：
+
+3. 用户代码只需关注解决问题，无需关注如何解决的细节，从而变得更加清晰了。
+
+4. 内部迭代使得 JVM 利用短路、并行处理和乱序执行来提升性能成为可能（JVM 是否利用了这些来优化性能取决于 JVM 实现本身，但是有了内部迭代这些至少是可能的，而对于外部迭代来说则是不可能的）
+
+
+
+#### 流的操作
+
+
+
+![1567995817549](D:\学习资料\学习笔记\markdownImage\1567995817549.png)
+
+
+
+上图有两个操作
+
+* filter、map、sorted连成一个流水线。
+
+* collect 触发流水线执行并且关闭它。
+
+    
+
+连接起来的流称为 中间操作，关闭流的操作称为终端操作。
+
+中间操作：它操作后会返回另外一个流，让多个操作可以连接起来形成一个查询。重要的是，除非流水线上触发一个终端操作，否则中间操作不会执行任何处理——这是因为中间操作一般都可以合并起来，在终端操作时一次性全部处理。
+
+终端操作：他会从流的流水线生成一个结果。结果可以是任何东西(void\integer\list....)，但是不能是流。
+
+
+
+![1567996327274](D:\学习资料\学习笔记\markdownImage\1567996327274.png)
+
+
+
+### Stream使用
+
+#### 筛选
+
+用到的例子
+
 ```
-List<String> collect = list.stream()
-        .filter(e -> e.getId() > 2)  // 中间操作
-        .sorted(comparing(YxUser::getCreateTime)) // 中间操作
-        .map(YxUser::getUsername) // 中间操作
-        .collect(Collectors.toList()); // 终端操作
-```
-
-
-
-**中间操作和终端操作的区别**：
-
-**中间操作**：如filter、sort、map等中间操作都会返回一个另外一个流。这让多个操作可以连接起来形成一个查询。最重要的是：除非流水线上有一个终端操作，不然中间操作不会做任何处理，因为中间操作都可以合并起来，一起在终端操作一次性全部处理。
-**终端操作**：都会从流的流水线产生结果，他的结果不是流。
-
-![img](image/clipboard2.png)
-
-使用流一般包括三件事：①：一个数据源执行一个查询，②一个中间操作链，行程一条流的流水线，③：一个终端操作，执行流水线，生成最终结果。
-
-
-#### 3.使用流
 List<Integer> integerList =Arrays.asList(1,2,2,2,2,2,4,5,6,7,8);
 
-**筛选**：谓词筛选filter 
+
+ List<YxUser> list = Arrays.asList(
+                new YxUser(1, "yanxgin", 12, "8237251670@qq.com", 1, true),
+                new YxUser(2, "caoxindi", 16, "2737827527@qq.com", 1, false),
+                new YxUser(3, "zhangsan", 18, "334899245@qq.com", 0, true),
+                new YxUser(4, "lisi", 23, "774892034@qq.com", 0, false),
+                new YxUser(5, "wangwu", 66, "43892475266@qq.com", 1, false),
+                new YxUser(6, "zhaoliu", 46, "54654742@qq.com", 0, false),
+                new YxUser(7, "liuqi", 30, "54375396@qq.com", 1, true)
+        );
+```
+
+
+
+**谓词筛选filter **
+
+
+
 ```java
  List<String> collect = list.stream()
         .filter(e -> e.getId() > 2)  //谓词筛选
         .collect(Collectors.toList()); // 终端操作    
 ```
 
-![img](image/clipboard3.png)
+
+
+![1567996815357](D:\学习资料\学习笔记\markdownImage\1567996815357.png)
+
+
 
 **distinct顾名思义**：去掉重复的。
+
+
 
 ```java
 integerList.stream()
            .filter(i->i%2==0)
            .distinct()
            .forEach(System.out::println);
-           //将输出所有偶数并且没有重复的
+//输出: 2,4，6,8
 ```
 
+
+
+![1567996585753](D:\学习资料\学习笔记\markdownImage\1567996585753.png)
+
+
+
+
+
 **limit**：返回前N个数据，类似mysql的limit上。
+
 ```java
 integerList.stream()
         .sorted()
-        .limit(2)
+        .limit(3)
         .forEach(System.out::println);
-        排序后将输出前两个
+//排序后将输出前三个,原来的数据 ：1,2,2,2,2,2,4,5,6,7,8
+// 输出：1 2 2
 ```
+
+
 
 **skip**：过滤掉前n个元素。
 
@@ -70,40 +237,97 @@ integerList.stream()
         .skip(2)
         .limit(2)
         .forEach(System.out::println); 
-        //排序后，先过滤前两个，在输出前两个。实际输出的是第3,4两个。
+//排序后，先过滤前两个，在输出前两个。实际输出的是第3,4两个。
+// 原来的数据 ：1,2,2,2,2,2,4,5,6,7,8
+// 输出：2 2
 ```
 
-**映射**：
 
-map:一般的用法：map就是取其中的一列
+
+#### 映射
+
+
+
+**map:一般的用法：map就是取其中的一列**
+
 ```java
-List<YxUser> list = Arrays.asList(
-        new YxUser(1,"yanxgin","222","823721670@qq.com"),
-        new YxUser(2,"12","222","823721670@qq.com"),
-        new YxUser(3,"yan34xgin","222","823721670@qq.com"),
-        new YxUser(4,"56","222","823721670@qq.com"),
-        new YxUser(5,"78","222","823721670@qq.com"),
-        new YxUser(6,"90","222","823721670@qq.com"),
-        new YxUser(7,"666","222","823721670@qq.com")
- );
-
 List<String> collect = list.stream()
         .filter(e -> e.getId() > 2)  // 中间操作
         .map(YxUser::getUsername) // 中间操作
         .collect(Collectors.toList()); // 终端操作
-        将会返回username这一列
+// 输出：
+// collect: [zhangsan, lisi, wangwu, zhaoliu, liuqi]
 ```
 
-> map(Arrays::Stream)和flatMap(Arrays::Stream)的区别：前者是将数据转换成一个单独的流。
-> 后者是将把流中的每个值都换成另外一个流，典型的列子是怎么统计一句英文句子中不同的字符。
+
+
+**flatMap：流的扁平化**
+
+例子：给定单词列表["Hello","World"]，你想要返回列表["H","e","l", "o","W","r","d"]。
+
+```java
+List<String> strings = Arrays.asList("Hello", "World");
+
+List<String[]> collect1 = strings.stream()
+                .map(e -> e.split(""))
+                .distinct()
+                .collect(Collectors.toList());
+System.out.println("collect1 : " + collect1);
+// 输出发现：collect1 : [[Ljava.lang.String;@799f7e29, [Ljava.lang.String;@4b85612c]
+// 并不是我们想要的
+```
+
+
+
+>这个方法的问题在于，传递给map方法的Lambda为每个单词返回了一个String[]（String列表）  。因此，map返回的流实际上是Stream<String[]>类型的。你真正想要的是用Stream<String>来表示一个字符流。
+
+
+
+![1568001355873](D:\学习资料\学习笔记\markdownImage\1568001355873.png)
+
+
+
+![1568001385022](D:\学习资料\学习笔记\markdownImage\1568001385022.png)
+
+flatMap登场
+
+```java
+ List<String> collect2 = strings.stream()
+                .map(e -> e.split(""))
+                .flatMap(Arrays::stream)// 将各个流生成为扁平化的单个流
+                .distinct()
+                .collect(Collectors.toList());
+// 输出：collect2 : [H, e, l, o, W, r, d]
+```
+
+
+
+![1568001528630](D:\学习资料\学习笔记\markdownImage\1568001528630.png)
+
+
+
+![1568001552968](D:\学习资料\学习笔记\markdownImage\1568001552968.png)
+
+
 
 **匹配**
+
+
 
 anyMatch表示数据集中是不是有一个元素能够匹配给定的谓词
 
 allMatch 表示流中的元素是否都能够匹配给定的谓词
 
 noneMatch 表示流中没有匹配改给定的谓词
+
+这三个方法都返回一个Boolearn，表明根据操作存在或者不存在。
+
+```java
+boolean isHealthy = menu.stream()
+						.allMatch(d -> d.getAge() < 30);
+```
+
+
 
 **查找**
 
@@ -114,53 +338,39 @@ Optional<YxUser> any = list.stream()
         .findAny();
 ```
 > Optional<T>：是一个容器类，表示一个值存在还是不存在，避免findAny找不到值的时候导致null的情况
-> > isPresent ：表示optional包含值的时候返回true，反之false
-> > >ifPresent(Consumer<T> t) ：表示存在时，执行存在的代码块
-> > >
-> > >> T get()会在值存在时返回值，否则抛出一个NoSuchElement异常。T orElse(T other)会在值存在时返回值，否则返回一个默认值
+>
+> isPresent ：表示optional包含值的时候返回true，反之false
+>
+> ifPresent(Consumer<T> t) ：表示存在时，执行存在的代码块
+>
+> T get()会在值存在时返回值，否则抛出一个NoSuchElement异常。T orElse(T other)会在值存在时返回值，否则返回一个默认值
+
+
 
 **查找第一个元素 findFirst**
 
-
-
-**peek**
-
-表示在一个流操作之前进行插入一段操作
-
 ```java
-List<Integer> result =   numbers.stream()       
-    .peek(x -> System.out.println("from stream: " + x))       
-    .map(x -> x + 17)          
-    .peek(x -> System.out.println("after map: " + x))          
-    .filter(x -> x % 2 == 0)         
-    .peek(x -> System.out.println("after filter: " + x))        
-    .limit(3)          
-    .peek(x -> System.out.println("after limit: " + x))       
-    .collect(toList());
-// 输出
-	from stream: 2 
-	after map: 19
-	from stream: 3 
-    after map: 20 
-    after filter: 20 
-    after limit: 20 
-    from stream: 4 
-    after map: 21 
-    from stream: 5 
-    after map: 22 after filter: 22 after limit: 22
+Optional<Integer> first = integerList.stream()
+                .map(x -> x * x)
+                .filter(x -> x % 3 == 0)
+                .findFirst();
 ```
 
 
 
-#### 4.归约
+#### 归约
+
+
+
 **reduce**:首先要有一个初始值，还有第二个参数是执行规约的规则
+
 ```java
 List<Integer> integerList = Arrays.asList(1, 2, 2, 2, 2, 2, 4, 5, 6, 7, 8);
 Integer reduce = integerList.stream()
         .reduce(0, (x, y) -> x + y);
 Integer reduce = integerList.stream()
         .reduce(0, Integer::sum);
-        这两个是一样的 还有Integer::MAX和MIN
+这两个是一样的 还有Integer::MAX和MIN，初始值要注意
 ```
 
 ![img](image/clipboard4.png)

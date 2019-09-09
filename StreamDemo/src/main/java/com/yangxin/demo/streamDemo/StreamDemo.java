@@ -2,6 +2,7 @@ package com.yangxin.demo.streamDemo;
 
 import com.yangxin.demo.Factory;
 import com.yangxin.demo.model.YxUser;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -32,13 +33,13 @@ import static java.util.stream.Collectors.toList;
 public class StreamDemo {
     public static void main(String[] args) {
         List<YxUser> list = Arrays.asList(
-                new YxUser(1, "yanxgin", "222", "8237251670@qq.com", 1, true),
-                new YxUser(2, "12", "222", "8237216670@qq.com", 1, false),
-                new YxUser(3, "yan34xgin", "222", "823721670@qq.com", 0, true),
-                new YxUser(4, "56", "222", "823721670@qq.com", 0, false),
-                new YxUser(5, "78", "222", "82372163@qq.com", 1, false),
-                new YxUser(6, "90", "222", "8237216470@qq.com", 0, false),
-                new YxUser(7, "666", "222", "823721670@qq.com", 1, true)
+                new YxUser(1, "yanxgin", 12, "8237251670@qq.com", 1, true),
+                new YxUser(2, "caoxindi", 16, "2737827527@qq.com", 1, false),
+                new YxUser(3, "zhangsan", 18, "334899245@qq.com", 0, true),
+                new YxUser(4, "lisi", 23, "774892034@qq.com", 0, false),
+                new YxUser(5, "wangwu", 66, "43892475266@qq.com", 1, false),
+                new YxUser(6, "zhaoliu", 46, "54654742@qq.com", 0, false),
+                new YxUser(7, "liuqi", 30, "54375396@qq.com", 1, true)
         );
 
 
@@ -46,9 +47,9 @@ public class StreamDemo {
         FactoryImpl factory = new FactoryImpl((String s) -> s.matches("[a-z]+"));
         System.out.println("boolean: " + factory.execute("ddd"));
 
-        YxUser yx = new FactoryImpl((String s) -> s.matches("[a-z]+")).processCustomer(e -> e.setUsername("杨鑫"));
+       /* YxUser yx = new FactoryImpl((String s) -> s.matches("[a-z]+")).processCustomer(e -> e.setUsername("杨鑫"));
         System.out.println("yx: " + yx);
-
+*/
 
         // 自定义的收集器
         List<YxUser> collect = list.stream()
@@ -71,12 +72,12 @@ public class StreamDemo {
         list.stream().map(YxUser::getUsername).collect(Collectors.joining(","));
 
         // mapping 和 map的区别
-        Map<String, List<Integer>> collect2 = list.stream().collect(groupingBy(YxUser::getEmail, mapping(YxUser::getSex, toList())));
+        Map<String, List<Integer>> collect2 = list.stream().collect(groupingBy(YxUser::getEmail, mapping(YxUser::getAge, toList())));
         System.out.println("collect2: " + collect2);
         list.stream().map(YxUser::getUsername).forEach(System.out::println);
         // collectionAndThen
         Map<Integer, YxUser> collect3 = list.stream()
-                .collect(groupingBy(YxUser::getSex, collectingAndThen(maxBy(Comparator.comparingInt(YxUser::getId)), Optional::get)));
+                .collect(groupingBy(YxUser::getAge, collectingAndThen(maxBy(Comparator.comparingInt(YxUser::getId)), Optional::get)));
         System.out.println("collect3: " + collect3);
         /**
          * andThen 相当于是 g(f(x))

@@ -7,7 +7,7 @@ public class YxUser{
 
     private String username;
 
-    private String password;
+    private int age;
 
     private Date lastVisitTime;
 
@@ -19,22 +19,14 @@ public class YxUser{
 
     private boolean x;
 
-    public boolean isX() {
-        return x;
-    }
-
-    public void setX(boolean x) {
+    public YxUser(Integer id, String username, int age, String email, Integer activation,boolean x) {
+        this.id = id;
+        this.username = username;
+        this.age = age;
+        this.lastVisitTime = lastVisitTime;
+        this.email = email;
+        this.activation = activation;
         this.x = x;
-    }
-
-    private int sex;
-
-    public int getSex() {
-        return sex;
-    }
-
-    public void setSex(int sex) {
-        this.sex = sex;
     }
 
     public Integer getId() {
@@ -53,12 +45,12 @@ public class YxUser{
         this.username = username;
     }
 
-    public String getPassword() {
-        return password;
+    public int getAge() {
+        return age;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    public void setAge(int age) {
+        this.age = age;
     }
 
     public Date getLastVisitTime() {
@@ -93,28 +85,11 @@ public class YxUser{
         this.createTime = createTime;
     }
 
-    public YxUser() {
+    public boolean isX() {
+        return x;
     }
 
-    public YxUser(Integer id, String username, String password, String email, int sex, boolean x) {
-        this.id = id;
-        this.username = username;
-        this.password = password;
-        this.email = email;
-        this.sex = sex;
+    public void setX(boolean x) {
         this.x = x;
-    }
-
-    @Override
-    public String toString() {
-        return "YxUser{" +
-                "id=" + id +
-                ", username='" + username + '\'' +
-                ", password='" + password + '\'' +
-                ", lastVisitTime=" + lastVisitTime +
-                ", email='" + email + '\'' +
-                ", activation=" + activation +
-                ", createTime=" + createTime +
-                '}';
     }
 }
